@@ -33,6 +33,8 @@ import {
 import { getAISummary } from './api';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 axios.defaults.withCredentials = true;
 
 interface Task {
@@ -58,34 +60,40 @@ export default function Dashboard() {
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    // Get CSRF cookie first
-    axios.get('/api/auth/csrf/').then(() => {
-      axios.get('/api/tasks/')
-        .then(res => {
-          const data = Array.isArray(res.data) ? res.data : res.data.results;
-          setTasks(data || []);
+    axios.get(`${API_URL}/auth/csrf/`).then(() => {
+      axios.get(`${API_URL}/tasks/`)
+        .then((res) => {
+          console.log('Backend /tasks/ response:', res.data);
+          let arr: Task[] = [];
+          if (Array.isArray(res.data)) {
+            arr = (res.data as any[]).map((t: any) => ({
+              id: Number(t.id),
+              title: String(t.title),
+              completed: Boolean(t.completed)
+            }));
+          } else if (res.data && Array.isArray((res.data as any).results)) {
+            arr = ((res.data as any).results as any[]).map((t: any) => ({
+              id: Number(t.id),
+              title: String(t.title),
+              completed: Boolean(t.completed)
+            }));
+          }
+          setTasks(arr);
         })
-        .catch(err => {
+        .catch((err: any) => {
           setError('Failed to load tasks');
           console.error('Error loading tasks:', err);
         });
     });
   }, []);
 
-  function getCSRFToken() {
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? match[1] : '';
-  }
-
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.trim()) return;
     setAdding(true);
     try {
-      const res = await axios.post('/api/tasks/', { title: newTask, description: '', priority: 'medium' }, {
-        headers: { 'X-CSRFToken': getCSRFToken() }
-      });
-      setTasks([...tasks, res.data]);
+      const res = await axios.post(`${API_URL}/tasks/`, { title: newTask, description: '', priority: 'medium' });
+      setTasks([...tasks, res.data as Task]);
       setNewTask('');
     } catch (err: any) {
       alert('Failed to add task: ' + (err.response?.data?.detail || err.message));
@@ -98,16 +106,12 @@ export default function Dashboard() {
   const toggleTask = async (id: number) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-    const res = await axios.patch(`/api/tasks/${id}/`, { completed: !task.completed }, {
-      headers: { 'X-CSRFToken': getCSRFToken() }
-    });
-    setTasks(tasks.map(t => t.id === id ? res.data : t));
+    const res = await axios.patch(`${API_URL}/tasks/${id}/`, { completed: !task.completed });
+    setTasks(tasks.map(t => t.id === id ? (res.data as Task) : t));
   };
 
   const deleteTask = async (id: number) => {
-    await axios.delete(`/api/tasks/${id}/`, {
-      headers: { 'X-CSRFToken': getCSRFToken() }
-    });
+    await axios.delete(`${API_URL}/tasks/${id}/`);
     setTasks(tasks.filter(t => t.id !== id));
   };
 
