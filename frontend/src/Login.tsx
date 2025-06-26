@@ -34,6 +34,99 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
     window.location.reload();
   };
 
+  const handleGoogleLogin = async () => {
+    if (!googleLoaded) {
+      alert('Google OAuth not loaded. Please refresh the page.');
+      return;
+    }
+
+    try {
+      console.log('=== MANUAL GOOGLE OAUTH TRIGGER ===');
+      
+      // Use Google's programmatic API
+      if ((window as any).google?.accounts?.id) {
+        console.log('Triggering Google OAuth prompt...');
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          console.log('Google OAuth notification:', notification);
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.error('Google OAuth prompt failed:', notification.getNotDisplayedReason());
+            alert('Google Sign In failed. Please try again.');
+          }
+        });
+      } else {
+        console.error('Google OAuth library not available');
+        alert('Google OAuth not available. Please refresh the page.');
+      }
+    } catch (error) {
+      console.error('Error triggering Google OAuth:', error);
+      alert('Failed to start Google Sign In. Please try again.');
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    console.log('=== GOOGLE OAUTH SUCCESS CALLBACK START ===');
+    console.log('Credential response:', credentialResponse);
+    console.log('Credential length:', credentialResponse.credential?.length || 0);
+    
+    if (!credentialResponse.credential) {
+      console.error('No credential in response');
+      alert('No credential returned from Google');
+      return;
+    }
+    
+    console.log('Google login successful, sending to backend...');
+    console.log('API URL:', `${API_URL}/auth/google/`);
+    
+    try {
+      console.log('Making POST request to backend...');
+      const requestData = qs.stringify({ credential: credentialResponse.credential });
+      console.log('Request data length:', requestData.length);
+      
+      const res = await axios.post(
+        `${API_URL}/auth/google/`,
+        requestData,
+        { 
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000
+        }
+      );
+      
+      console.log('Backend response received!');
+      console.log('Response status:', res.status);
+      console.log('Response data:', res.data);
+      
+      if (res.data && typeof res.data === 'object' && 'user' in res.data) {
+        console.log('Login successful, user:', (res.data as any).user);
+        console.log('Calling onLogin callback...');
+        if (onLogin) onLogin();
+        console.log('=== GOOGLE OAUTH SUCCESS CALLBACK END ===');
+      } else {
+        console.error('Backend verification failed - no user in response');
+        console.log('Response structure:', Object.keys(res.data || {}));
+        alert('Backend verification failed');
+      }
+    } catch (err: any) {
+      console.error('=== LOGIN ERROR ===');
+      console.error('Error type:', err.constructor.name);
+      console.error('Error message:', err.message);
+      console.error('Error status:', err.response?.status);
+      console.error('Error data:', err.response?.data);
+      console.error('Error config:', err.config);
+      console.error('Network error:', err.code);
+      
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        alert('Login request timed out. Please try again.');
+      } else if (err.response?.status === 500) {
+        alert('Server error. Please try again later.');
+      } else {
+        const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
+        alert('Google Sign In Failed: ' + errorMsg);
+      }
+    }
+  };
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)' }}>
       <Paper elevation={6} sx={{ p: 6, borderRadius: 4, minWidth: 340, textAlign: 'center', background: 'rgba(26,26,46,0.95)' }}>
@@ -47,123 +140,36 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
           </Typography>
         )}
         
-        {/* Hidden GoogleLogin component */}
-        <div style={{ display: 'none' }}>
-          <GoogleLogin
-            onSuccess={async (credentialResponse: CredentialResponse) => {
-              console.log('=== GOOGLE OAUTH SUCCESS CALLBACK START ===');
-              console.log('Credential response:', credentialResponse);
-              console.log('Credential length:', credentialResponse.credential?.length || 0);
-              
-              if (!credentialResponse.credential) {
-                console.error('No credential in response');
-                alert('No credential returned from Google');
-                return;
-              }
-              
-              console.log('Google login successful, sending to backend...');
-              console.log('API URL:', `${API_URL}/auth/google/`);
-              
-              try {
-                console.log('Making POST request to backend...');
-                const requestData = qs.stringify({ credential: credentialResponse.credential });
-                console.log('Request data length:', requestData.length);
-                
-                // Remove cache-busting as it might interfere with OAuth
-                const res = await axios.post(
-                  `${API_URL}/auth/google/`,
-                  requestData,
-                  { 
-                    headers: { 
-                      'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    timeout: 15000
-                  }
-                );
-                
-                console.log('Backend response received!');
-                console.log('Response status:', res.status);
-                console.log('Response data:', res.data);
-                
-                if (res.data && typeof res.data === 'object' && 'user' in res.data) {
-                  console.log('Login successful, user:', (res.data as any).user);
-                  console.log('Calling onLogin callback...');
-                  if (onLogin) onLogin();
-                  console.log('=== GOOGLE OAUTH SUCCESS CALLBACK END ===');
-                } else {
-                  console.error('Backend verification failed - no user in response');
-                  console.log('Response structure:', Object.keys(res.data || {}));
-                  alert('Backend verification failed');
-                }
-              } catch (err: any) {
-                console.error('=== LOGIN ERROR ===');
-                console.error('Error type:', err.constructor.name);
-                console.error('Error message:', err.message);
-                console.error('Error status:', err.response?.status);
-                console.error('Error data:', err.response?.data);
-                console.error('Error config:', err.config);
-                console.error('Network error:', err.code);
-                
-                if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-                  alert('Login request timed out. Please try again.');
-                } else if (err.response?.status === 500) {
-                  alert('Server error. Please try again later.');
-                } else {
-                  const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
-                  alert('Google Sign In Failed: ' + errorMsg);
-                }
-              }
-            }}
-            onError={() => {
-              console.error('=== GOOGLE OAUTH ERROR CALLBACK ===');
-              console.error('Google OAuth error occurred');
-              alert('Google Sign In Failed');
-            }}
-          />
-        </div>
-        
-        {/* Custom Google Sign In button */}
-        <Button 
-          variant="contained"
-          onClick={() => {
-            // Trigger the hidden GoogleLogin by clicking its button
-            const googleButton = document.querySelector('[data-testid="google-login-button"]') as HTMLElement;
-            if (googleButton) {
-              googleButton.click();
-            } else {
-              // Fallback: try to find any Google OAuth button
-              const buttons = document.querySelectorAll('button');
-              const googleBtn = Array.from(buttons).find(btn => 
-                btn.textContent?.includes('Sign in with Google') || 
-                btn.innerHTML?.includes('google')
-              );
-              if (googleBtn) {
-                (googleBtn as HTMLElement).click();
-              } else {
-                alert('Google OAuth button not found. Please refresh the page.');
-              }
-            }
+        {/* GoogleLogin component - properly visible */}
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => {
+            console.error('=== GOOGLE OAUTH ERROR CALLBACK ===');
+            console.error('Google OAuth error occurred');
+            alert('Google Sign In Failed');
           }}
+          useOneTap={false}
+          theme="filled_blue"
+          size="large"
+          text="signin_with"
+          shape="rectangular"
+        />
+        
+        {/* Alternative manual trigger button */}
+        <Button 
+          variant="outlined"
+          onClick={handleGoogleLogin}
           disabled={!googleLoaded}
-          sx={{
+          sx={{ 
+            mt: 2,
             background: 'linear-gradient(45deg, #4285f4, #34a853)',
             color: 'white',
-            py: 1.5,
-            px: 3,
-            fontSize: '1.1rem',
-            fontWeight: 600,
-            borderRadius: 2,
-            textTransform: 'none',
             '&:hover': {
               background: 'linear-gradient(45deg, #3367d6, #2d8f47)'
-            },
-            '&:disabled': {
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: 'rgba(255, 255, 255, 0.3)'
             }
           }}
         >
-          Sign in with Google
+          Alternative Google Sign In
         </Button>
         
         {/* Test button to check backend connectivity */}
