@@ -1,5 +1,5 @@
-import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
+import type { CredentialResponse } from '@react-oauth/google';
 import { Box, Paper, Typography } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import axios from 'axios';
@@ -7,7 +7,9 @@ import qs from 'qs';
 
 axios.defaults.withCredentials = true;
 
-export default function Login({ onLogin }) {
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+export default function Login({ onLogin }: { onLogin?: () => void }) {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)' }}>
       <Paper elevation={6} sx={{ p: 6, borderRadius: 4, minWidth: 340, textAlign: 'center', background: 'rgba(26,26,46,0.95)' }}>
@@ -15,20 +17,25 @@ export default function Login({ onLogin }) {
           Sign in to TaskManager
         </Typography>
         <GoogleLogin
-          onSuccess={async credentialResponse => {
+          onSuccess={async (credentialResponse: CredentialResponse) => {
+            if (!credentialResponse.credential) {
+              alert('No credential returned from Google');
+              return;
+            }
             try {
               const res = await axios.post(
-                '/api/auth/google/',
+                `${API_URL}/auth/google/`,
                 qs.stringify({ credential: credentialResponse.credential }),
                 { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
               );
-              if (res.data && res.data.user) {
+              if (res.data && (res.data as { user?: any }).user) {
                 if (onLogin) onLogin();
               } else {
                 alert('Backend verification failed');
               }
             } catch (err) {
-              alert('Google Sign In Failed: ' + (err?.response?.data?.error || err.message));
+              const errorMsg = (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) ? (err.response.data.error) : (err instanceof Error ? err.message : 'Unknown error');
+              alert('Google Sign In Failed: ' + errorMsg);
             }
           }}
           onError={() => {
