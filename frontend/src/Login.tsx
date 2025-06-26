@@ -4,21 +4,45 @@ import { Box, Paper, Typography, Button } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import axios from 'axios';
 import qs from 'qs';
+import { useState, useEffect } from 'react';
 
 axios.defaults.withCredentials = true;
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function Login({ onLogin }: { onLogin?: () => void }) {
+  const [googleLoaded, setGoogleLoaded] = useState(false);
+
+  useEffect(() => {
+    // Check if Google OAuth is loaded
+    if ((window as any).google && (window as any).google.accounts) {
+      setGoogleLoaded(true);
+      console.log('Google OAuth library loaded successfully');
+    } else {
+      console.error('Google OAuth library not loaded');
+    }
+  }, []);
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)' }}>
       <Paper elevation={6} sx={{ p: 6, borderRadius: 4, minWidth: 340, textAlign: 'center', background: 'rgba(26,26,46,0.95)' }}>
         <Typography variant="h4" sx={{ mb: 3, fontWeight: 700, color: '#6366f1' }}>
           Sign in to TaskManager
         </Typography>
+        
+        {!googleLoaded && (
+          <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+            Google OAuth library not loaded. Please refresh the page.
+          </Typography>
+        )}
+        
         <GoogleLogin
           onSuccess={async (credentialResponse: CredentialResponse) => {
+            console.log('Google OAuth success callback triggered');
+            console.log('Credential response:', credentialResponse);
+            
             if (!credentialResponse.credential) {
+              console.error('No credential in response');
               alert('No credential returned from Google');
               return;
             }
@@ -28,6 +52,7 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
               
+              console.log('Making request to:', `${API_URL}/auth/google/`);
               const res = await axios.post(
                 `${API_URL}/auth/google/`,
                 qs.stringify({ credential: credentialResponse.credential }),
@@ -42,10 +67,17 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
                 console.log('Login successful, user:', (res.data as any).user);
                 if (onLogin) onLogin();
               } else {
+                console.error('Backend verification failed - no user in response');
                 alert('Backend verification failed');
               }
             } catch (err: any) {
               console.error('Login error:', err);
+              console.error('Error details:', {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+                config: err.config
+              });
               if (err.name === 'AbortError') {
                 alert('Login request timed out. Please try again.');
               } else {
