@@ -164,30 +164,61 @@ def google_login(request):
     from google.auth.transport import requests as google_requests
     from django.contrib.auth import get_user_model, login
 
+    print("=== GOOGLE LOGIN START ===")
+    print(f"Request method: {request.method}")
+    print(f"Request body: {request.body[:200]}...")  # First 200 chars
+    
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
+    
     token = request.POST.get('credential')
     if not token and request.body:
         try:
             data = json.loads(request.body)
             token = data.get('credential')
-        except Exception:
+            print(f"Got token from JSON body, length: {len(token) if token else 0}")
+        except Exception as e:
+            print(f"Error parsing JSON body: {e}")
             token = None
+    
     if not token:
+        print("No token found in request")
         return JsonResponse({'error': 'Missing credential'}, status=400)
+    
     try:
+        print("Verifying Google token...")
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), "938526209070-p87aip5pgetff98rkenmk6ki6hnmorh5.apps.googleusercontent.com")
         email = idinfo.get('email')
         name = idinfo.get('name') or email.split('@')[0]
+        print(f"Token verified. Email: {email}, Name: {name}")
+        
         if not email:
+            print("No email in token")
             return JsonResponse({'error': 'No email in token'}, status=400)
+        
         User = get_user_model()
-        user, created = User.objects.get_or_create(username=email, defaults={'email': email, 'first_name': name})
+        print(f"Looking for user with email: {email}")
+        
+        try:
+            user, created = User.objects.get_or_create(username=email, defaults={'email': email, 'first_name': name})
+            print(f"User {'created' if created else 'found'}: {user.username} (ID: {user.id})")
+        except Exception as db_error:
+            print(f"Database error creating/finding user: {db_error}")
+            return JsonResponse({'error': f'Database error: {str(db_error)}'}, status=500)
+        
+        print("Logging in user...")
         login(request, user)
         request.session.save()
-        return JsonResponse({'message': 'Google login successful', 'user': {'id': user.id, 'username': user.username, 'email': user.email}})
+        print("Session saved successfully")
+        
+        response_data = {'message': 'Google login successful', 'user': {'id': user.id, 'username': user.username, 'email': user.email}}
+        print(f"Returning response: {response_data}")
+        return JsonResponse(response_data)
+        
     except Exception as e:
         import traceback
+        print(f"=== GOOGLE LOGIN ERROR ===")
+        print(f"Error: {str(e)}")
         print(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=401)
 
@@ -217,3 +248,54 @@ def test_openai(request):
     )
     print("OpenAI call finished at", time.time(), flush=True)
     return JsonResponse({"result": response.choices[0].message.content})
+
+
+@api_view(['GET'])
+def test_database(request):
+    """Test database connectivity and basic operations"""
+    try:
+        from django.contrib.auth import get_user_model
+        from django.db import connection
+        
+        print("=== DATABASE TEST START ===")
+        
+        # Test database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            print(f"Database connection test: {result}")
+        
+        # Test user model
+        User = get_user_model()
+        user_count = User.objects.count()
+        print(f"Total users in database: {user_count}")
+        
+        # Test creating a test user
+        test_user, created = User.objects.get_or_create(
+            username='test_user_123',
+            defaults={'email': 'test@example.com', 'first_name': 'Test'}
+        )
+        print(f"Test user {'created' if created else 'exists'}: {test_user.username}")
+        
+        # Clean up test user
+        if created:
+            test_user.delete()
+            print("Test user cleaned up")
+        
+        return JsonResponse({
+            'status': 'success',
+            'database_connected': True,
+            'user_count': user_count,
+            'test_user_created': created
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"=== DATABASE TEST ERROR ===")
+        print(f"Error: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e),
+            'database_connected': False
+        }, status=500)

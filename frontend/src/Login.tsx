@@ -149,6 +149,34 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
         >
           Test Google OAuth
         </Button>
+        
+        {/* Test database */}
+        <Button 
+          variant="outlined" 
+          onClick={async () => {
+            try {
+              console.log('=== TESTING DATABASE ===');
+              console.log('Testing URL:', `${API_URL}/test_database/`);
+              
+              const res = await axios.get(`${API_URL}/test_database/`, {
+                timeout: 10000
+              });
+              
+              console.log('Database test successful!');
+              console.log('Response:', res.data);
+              alert('Database test: ' + JSON.stringify(res.data, null, 2));
+            } catch (err: any) {
+              console.error('=== DATABASE TEST FAILED ===');
+              console.error('Error:', err.message);
+              console.error('Status:', err.response?.status);
+              console.error('Data:', err.response?.data);
+              alert('Database test failed: ' + (err.response?.data?.error || err.message));
+            }
+          }}
+          sx={{ mt: 1, ml: 1 }}
+        >
+          Test Database
+        </Button>
         <Box sx={{ mt: 3, color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
           <GoogleIcon sx={{ color: '#ea4335' }} />
           <Typography variant="body2">Sign in with Google</Typography>

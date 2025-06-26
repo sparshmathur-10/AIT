@@ -13,4 +13,5 @@ urlpatterns = [
     path('auth/profile/', views.user_profile, name='profile'),
     path('auth/csrf/', views.get_csrf, name='get_csrf'),
     path('test_openai/', views.test_openai, name='test_openai'),
+    path('test_database/', views.test_database, name='test_database'),
 ] 
