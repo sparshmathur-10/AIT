@@ -141,17 +141,25 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- LOCAL DEV CORS & COOKIE SETTINGS ---
-# These settings are required for session cookies to work cross-origin (localhost:5173 <-> localhost:8000)
+# --- CORS & COOKIE SETTINGS ---
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://ait-t123.onrender.com",
     "http://localhost:5173"
 ]
-SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SECURE = False
+
+# For production, use secure cookies
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+else:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
 CSRF_TRUSTED_ORIGINS = [
     "https://ait-t123.onrender.com",
     "http://localhost:5173"

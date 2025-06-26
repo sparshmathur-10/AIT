@@ -35,7 +35,34 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Configure axios to include credentials and CSRF token
 axios.defaults.withCredentials = true;
+
+// Function to get CSRF token from cookies
+function getCSRFToken() {
+  const name = 'csrftoken';
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Add CSRF token to all requests
+axios.interceptors.request.use(function (config) {
+  const token = getCSRFToken();
+  if (token && config.headers) {
+    config.headers['X-CSRFToken'] = token;
+  }
+  return config;
+});
 
 interface Task {
   id: number;
@@ -60,31 +87,37 @@ export default function Dashboard() {
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    axios.get(`${API_URL}/auth/csrf/`).then(() => {
-      axios.get(`${API_URL}/tasks/`)
-        .then((res) => {
-          console.log('Backend /tasks/ response:', res.data);
-          let arr: Task[] = [];
-          if (Array.isArray(res.data)) {
-            arr = (res.data as any[]).map((t: any) => ({
-              id: Number(t.id),
-              title: String(t.title),
-              completed: Boolean(t.completed)
-            }));
-          } else if (res.data && Array.isArray((res.data as any).results)) {
-            arr = ((res.data as any).results as any[]).map((t: any) => ({
-              id: Number(t.id),
-              title: String(t.title),
-              completed: Boolean(t.completed)
-            }));
-          }
-          setTasks(arr);
-        })
-        .catch((err: any) => {
-          setError('Failed to load tasks');
-          console.error('Error loading tasks:', err);
-        });
-    });
+    // First get CSRF token, then load tasks
+    const initializeApp = async () => {
+      try {
+        // Get CSRF token
+        await axios.get(`${API_URL}/auth/csrf/`);
+        
+        // Now load tasks
+        const res = await axios.get(`${API_URL}/tasks/`);
+        console.log('Backend /tasks/ response:', res.data);
+        let arr: Task[] = [];
+        if (Array.isArray(res.data)) {
+          arr = (res.data as any[]).map((t: any) => ({
+            id: Number(t.id),
+            title: String(t.title),
+            completed: Boolean(t.completed)
+          }));
+        } else if (res.data && Array.isArray((res.data as any).results)) {
+          arr = ((res.data as any).results as any[]).map((t: any) => ({
+            id: Number(t.id),
+            title: String(t.title),
+            completed: Boolean(t.completed)
+          }));
+        }
+        setTasks(arr);
+      } catch (err: any) {
+        setError('Failed to load tasks');
+        console.error('Error loading tasks:', err);
+      }
+    };
+
+    initializeApp();
   }, []);
 
   const addTask = async (e: React.FormEvent) => {

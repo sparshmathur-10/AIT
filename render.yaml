@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ait-app
+    env: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: cd backend && python manage.py migrate && gunicorn ait_backend.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: ait-t123.onrender.com
