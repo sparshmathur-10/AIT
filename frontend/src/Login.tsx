@@ -38,55 +38,68 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
         
         <GoogleLogin
           onSuccess={async (credentialResponse: CredentialResponse) => {
-            console.log('Google OAuth success callback triggered');
+            console.log('=== GOOGLE OAUTH SUCCESS CALLBACK START ===');
             console.log('Credential response:', credentialResponse);
+            console.log('Credential length:', credentialResponse.credential?.length || 0);
             
             if (!credentialResponse.credential) {
               console.error('No credential in response');
               alert('No credential returned from Google');
               return;
             }
+            
             console.log('Google login successful, sending to backend...');
+            console.log('API URL:', `${API_URL}/auth/google/`);
+            
             try {
-              // Add timeout to the request
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+              console.log('Making POST request to backend...');
+              const requestData = qs.stringify({ credential: credentialResponse.credential });
+              console.log('Request data length:', requestData.length);
               
-              console.log('Making request to:', `${API_URL}/auth/google/`);
               const res = await axios.post(
                 `${API_URL}/auth/google/`,
-                qs.stringify({ credential: credentialResponse.credential }),
+                requestData,
                 { 
-                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  timeout: 15000
                 }
               );
               
-              clearTimeout(timeoutId);
-              console.log('Backend login response:', res.data);
+              console.log('Backend response received!');
+              console.log('Response status:', res.status);
+              console.log('Response data:', res.data);
+              
               if (res.data && typeof res.data === 'object' && 'user' in res.data) {
                 console.log('Login successful, user:', (res.data as any).user);
+                console.log('Calling onLogin callback...');
                 if (onLogin) onLogin();
+                console.log('=== GOOGLE OAUTH SUCCESS CALLBACK END ===');
               } else {
                 console.error('Backend verification failed - no user in response');
+                console.log('Response structure:', Object.keys(res.data || {}));
                 alert('Backend verification failed');
               }
             } catch (err: any) {
-              console.error('Login error:', err);
-              console.error('Error details:', {
-                message: err.message,
-                status: err.response?.status,
-                data: err.response?.data,
-                config: err.config
-              });
-              if (err.name === 'AbortError') {
+              console.error('=== LOGIN ERROR ===');
+              console.error('Error type:', err.constructor.name);
+              console.error('Error message:', err.message);
+              console.error('Error status:', err.response?.status);
+              console.error('Error data:', err.response?.data);
+              console.error('Error config:', err.config);
+              console.error('Network error:', err.code);
+              
+              if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
                 alert('Login request timed out. Please try again.');
+              } else if (err.response?.status === 500) {
+                alert('Server error. Please try again later.');
               } else {
-                const errorMsg = (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) ? (err.response.data.error) : (err instanceof Error ? err.message : 'Unknown error');
+                const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
                 alert('Google Sign In Failed: ' + errorMsg);
               }
             }
           }}
           onError={() => {
+            console.error('=== GOOGLE OAUTH ERROR CALLBACK ===');
             console.error('Google OAuth error occurred');
             alert('Google Sign In Failed');
           }}
@@ -98,18 +111,43 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
           variant="outlined" 
           onClick={async () => {
             try {
-              console.log('Testing backend connectivity...');
-              const res = await axios.get(`${API_URL}/auth/profile/`);
-              console.log('Backend test response:', res.status);
+              console.log('=== TESTING BACKEND CONNECTIVITY ===');
+              console.log('Testing URL:', `${API_URL}/auth/profile/`);
+              
+              const res = await axios.get(`${API_URL}/auth/profile/`, {
+                timeout: 10000
+              });
+              
+              console.log('Backend test successful!');
+              console.log('Status:', res.status);
+              console.log('Data:', res.data);
               alert('Backend is reachable! Status: ' + res.status);
             } catch (err: any) {
-              console.error('Backend test failed:', err);
+              console.error('=== BACKEND TEST FAILED ===');
+              console.error('Error:', err.message);
+              console.error('Status:', err.response?.status);
+              console.error('Data:', err.response?.data);
               alert('Backend test failed: ' + (err.response?.status || err.message));
             }
           }}
           sx={{ mt: 2 }}
         >
           Test Backend Connection
+        </Button>
+        
+        {/* Test Google OAuth library */}
+        <Button 
+          variant="outlined" 
+          onClick={() => {
+            console.log('=== TESTING GOOGLE OAUTH LIBRARY ===');
+            console.log('Google loaded:', googleLoaded);
+            console.log('Window google:', (window as any).google);
+            console.log('Google accounts:', (window as any).google?.accounts);
+            alert(`Google OAuth loaded: ${googleLoaded}`);
+          }}
+          sx={{ mt: 1, ml: 1 }}
+        >
+          Test Google OAuth
         </Button>
         <Box sx={{ mt: 3, color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
           <GoogleIcon sx={{ color: '#ea4335' }} />
