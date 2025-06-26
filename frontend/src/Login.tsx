@@ -22,18 +22,22 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
               alert('No credential returned from Google');
               return;
             }
+            console.log('Google login successful, sending to backend...');
             try {
               const res = await axios.post(
                 `${API_URL}/auth/google/`,
                 qs.stringify({ credential: credentialResponse.credential }),
                 { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
               );
-              if (res.data && (res.data as { user?: any }).user) {
+              console.log('Backend login response:', res.data);
+              if (res.data && typeof res.data === 'object' && 'user' in res.data) {
+                console.log('Login successful, user:', (res.data as any).user);
                 if (onLogin) onLogin();
               } else {
                 alert('Backend verification failed');
               }
             } catch (err) {
+              console.error('Login error:', err);
               const errorMsg = (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) ? (err.response.data.error) : (err instanceof Error ? err.message : 'Unknown error');
               alert('Google Sign In Failed: ' + errorMsg);
             }

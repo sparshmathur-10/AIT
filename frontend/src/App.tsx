@@ -34,7 +34,14 @@ export default function App() {
 
   useEffect(() => {
     fetch(`${API_URL}/auth/profile/`, { credentials: 'include' })
-      .then(res => res.ok ? setAuthed(true) : setAuthed(false))
+      .then(res => {
+        console.log('Auth check response:', res.status, res.ok);
+        return res.ok ? setAuthed(true) : setAuthed(false);
+      })
+      .catch(err => {
+        console.error('Auth check error:', err);
+        setAuthed(false);
+      })
       .finally(() => setLoading(false));
   }, []);
 
