@@ -1,6 +1,6 @@
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography, Button } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import axios from 'axios';
 import qs from 'qs';
@@ -24,11 +24,19 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
             }
             console.log('Google login successful, sending to backend...');
             try {
+              // Add timeout to the request
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+              
               const res = await axios.post(
                 `${API_URL}/auth/google/`,
                 qs.stringify({ credential: credentialResponse.credential }),
-                { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+                { 
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                }
               );
+              
+              clearTimeout(timeoutId);
               console.log('Backend login response:', res.data);
               if (res.data && typeof res.data === 'object' && 'user' in res.data) {
                 console.log('Login successful, user:', (res.data as any).user);
@@ -36,17 +44,41 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
               } else {
                 alert('Backend verification failed');
               }
-            } catch (err) {
+            } catch (err: any) {
               console.error('Login error:', err);
-              const errorMsg = (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) ? (err.response.data.error) : (err instanceof Error ? err.message : 'Unknown error');
-              alert('Google Sign In Failed: ' + errorMsg);
+              if (err.name === 'AbortError') {
+                alert('Login request timed out. Please try again.');
+              } else {
+                const errorMsg = (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) ? (err.response.data.error) : (err instanceof Error ? err.message : 'Unknown error');
+                alert('Google Sign In Failed: ' + errorMsg);
+              }
             }
           }}
           onError={() => {
+            console.error('Google OAuth error occurred');
             alert('Google Sign In Failed');
           }}
           useOneTap
         />
+        
+        {/* Test button to check backend connectivity */}
+        <Button 
+          variant="outlined" 
+          onClick={async () => {
+            try {
+              console.log('Testing backend connectivity...');
+              const res = await axios.get(`${API_URL}/auth/profile/`);
+              console.log('Backend test response:', res.status);
+              alert('Backend is reachable! Status: ' + res.status);
+            } catch (err: any) {
+              console.error('Backend test failed:', err);
+              alert('Backend test failed: ' + (err.response?.status || err.message));
+            }
+          }}
+          sx={{ mt: 2 }}
+        >
+          Test Backend Connection
+        </Button>
         <Box sx={{ mt: 3, color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
           <GoogleIcon sx={{ color: '#ea4335' }} />
           <Typography variant="body2">Sign in with Google</Typography>
