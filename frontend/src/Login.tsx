@@ -3,7 +3,7 @@ import type { CredentialResponse } from '@react-oauth/google';
 import { Box, Paper, Typography, Button } from '@mui/material';
 import axios from 'axios';
 import qs from 'qs';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 axios.defaults.withCredentials = true;
 
