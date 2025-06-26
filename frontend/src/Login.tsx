@@ -103,7 +103,6 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
             console.error('Google OAuth error occurred');
             alert('Google Sign In Failed');
           }}
-          useOneTap
         />
         
         {/* Test button to check backend connectivity */}
@@ -143,6 +142,20 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
             console.log('Google loaded:', googleLoaded);
             console.log('Window google:', (window as any).google);
             console.log('Google accounts:', (window as any).google?.accounts);
+            
+            // Try to manually trigger Google OAuth
+            if ((window as any).google?.accounts?.id) {
+              console.log('Attempting to manually trigger Google OAuth...');
+              try {
+                (window as any).google.accounts.id.prompt();
+                console.log('Google OAuth prompt triggered successfully');
+              } catch (e) {
+                console.error('Error triggering Google OAuth prompt:', e);
+              }
+            } else {
+              console.error('Google OAuth library not properly loaded');
+            }
+            
             alert(`Google OAuth loaded: ${googleLoaded}`);
           }}
           sx={{ mt: 1, ml: 1 }}
