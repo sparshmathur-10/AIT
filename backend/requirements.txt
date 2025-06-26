@@ -9,4 +9,5 @@ gunicorn
 google-auth
 openai
 python-dotenv
-httpx 
+httpx
+whitenoise 
