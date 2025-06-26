@@ -1,7 +1,6 @@
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { Box, Paper, Typography, Button } from '@mui/material';
-import GoogleIcon from '@mui/icons-material/Google';
 import axios from 'axios';
 import qs from 'qs';
 import { useState, useEffect } from 'react';
