@@ -11,7 +11,6 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function Login({ onLogin }: { onLogin?: () => void }) {
   const [googleLoaded, setGoogleLoaded] = useState(false);
-  const googleLoginRef = useRef<any>(null);
 
   useEffect(() => {
     // Check if Google OAuth is loaded
@@ -22,12 +21,6 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
       console.error('Google OAuth library not loaded');
     }
   }, []);
-
-  const handleGoogleLogin = () => {
-    if (googleLoginRef.current) {
-      googleLoginRef.current.click();
-    }
-  };
 
   const clearAllCookies = () => {
     console.log('=== CLEARING ALL COOKIES ===');
