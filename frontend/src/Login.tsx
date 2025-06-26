@@ -88,20 +88,26 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
     try {
       addDebug('Attempting to trigger Google OAuth prompt...');
       
-      // Use Google's programmatic API
-      if ((window as any).google?.accounts?.id) {
-        addDebug('Google OAuth ID API available, calling prompt...');
-        (window as any).google.accounts.id.prompt((notification: any) => {
-          addDebug(`Google OAuth notification received: ${JSON.stringify(notification)}`);
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            const reason = notification.getNotDisplayedReason();
-            addDebug(`Google OAuth prompt failed: ${reason}`);
-            alert(`Google Sign In failed: ${reason}`);
-          }
-        });
+      // Simple approach - just trigger the GoogleLogin component
+      const googleButton = document.querySelector('[data-testid="google-login-button"]') as HTMLElement;
+      if (googleButton) {
+        addDebug('Found GoogleLogin button, clicking it...');
+        googleButton.click();
       } else {
-        addDebug('Google OAuth ID API not available');
-        alert('Google OAuth not available. Please refresh the page.');
+        addDebug('GoogleLogin button not found, trying alternative...');
+        // Try to find any Google OAuth button
+        const buttons = document.querySelectorAll('button');
+        const googleBtn = Array.from(buttons).find(btn => 
+          btn.textContent?.includes('Sign in with Google') || 
+          btn.innerHTML?.includes('google')
+        );
+        if (googleBtn) {
+          addDebug('Found alternative Google button, clicking...');
+          (googleBtn as HTMLElement).click();
+        } else {
+          addDebug('No Google OAuth button found');
+          alert('Google OAuth button not found. Please refresh the page.');
+        }
       }
     } catch (error) {
       addDebug(`Error triggering Google OAuth: ${error}`);
@@ -199,6 +205,12 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
           </Typography>
         )}
         
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          If the Google Sign-In popup doesn't appear, please:
+          <br />• Disable popup blockers for this site
+          <br />• Try the "Alternative Google Sign In" button below
+        </Typography>
+        
         {/* GoogleLogin component - properly visible */}
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
@@ -207,7 +219,7 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
             addDebug('Google OAuth error occurred');
             alert('Google Sign In Failed');
           }}
-          useOneTap={false}
+          useOneTap={true}
           theme="filled_blue"
           size="large"
           text="signin_with"
