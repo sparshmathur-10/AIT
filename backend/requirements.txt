@@ -4,4 +4,9 @@ django-cors-headers==4.3.1
 requests==2.31.0
 python-decouple==3.8
 azure-ai-inference==1.0.0b9
-azure-core==1.30.0 
+azure-core==1.30.0
+gunicorn
+google-auth
+openai
+python-dotenv
+httpx 
