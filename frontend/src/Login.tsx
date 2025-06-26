@@ -21,6 +21,12 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
     } else {
       console.error('Google OAuth library not loaded');
     }
+    
+    // Clear any existing session data to force fresh authentication
+    console.log('Clearing existing session data...');
+    document.cookie.split(";").forEach(function(c) { 
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+    });
   }, []);
 
   return (
@@ -56,11 +62,16 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
               const requestData = qs.stringify({ credential: credentialResponse.credential });
               console.log('Request data length:', requestData.length);
               
+              // Add cache-busting and ensure fresh request
               const res = await axios.post(
-                `${API_URL}/auth/google/`,
+                `${API_URL}/auth/google/?_t=${Date.now()}`,
                 requestData,
                 { 
-                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                  },
                   timeout: 15000
                 }
               );
@@ -189,6 +200,28 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
           sx={{ mt: 1, ml: 1 }}
         >
           Test Database
+        </Button>
+        
+        {/* Clear Cache button */}
+        <Button 
+          variant="outlined" 
+          onClick={() => {
+            console.log('=== CLEARING CACHE ===');
+            // Clear all cookies
+            document.cookie.split(";").forEach(function(c) { 
+              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            // Clear localStorage
+            localStorage.clear();
+            // Clear sessionStorage
+            sessionStorage.clear();
+            console.log('Cache cleared successfully');
+            alert('Cache cleared! Please refresh the page and try signing in again.');
+            window.location.reload();
+          }}
+          sx={{ mt: 1, ml: 1 }}
+        >
+          Clear Cache
         </Button>
       </Paper>
     </Box>
