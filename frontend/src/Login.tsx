@@ -3,7 +3,7 @@ import type { CredentialResponse } from '@react-oauth/google';
 import { Box, Paper, Typography, Button } from '@mui/material';
 import axios from 'axios';
 import qs from 'qs';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 axios.defaults.withCredentials = true;
 
@@ -11,6 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function Login({ onLogin }: { onLogin?: () => void }) {
   const [googleLoaded, setGoogleLoaded] = useState(false);
+  const googleLoginRef = useRef<any>(null);
 
   useEffect(() => {
     // Check if Google OAuth is loaded
@@ -20,13 +21,25 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
     } else {
       console.error('Google OAuth library not loaded');
     }
-    
-    // Clear any existing session data to force fresh authentication
-    console.log('Clearing existing session data...');
+  }, []);
+
+  const handleGoogleLogin = () => {
+    if (googleLoginRef.current) {
+      googleLoginRef.current.click();
+    }
+  };
+
+  const clearAllCookies = () => {
+    console.log('=== CLEARING ALL COOKIES ===');
     document.cookie.split(";").forEach(function(c) { 
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
     });
-  }, []);
+    localStorage.clear();
+    sessionStorage.clear();
+    console.log('All cookies and storage cleared');
+    alert('Cache cleared! Please refresh the page and try signing in again.');
+    window.location.reload();
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)' }}>
@@ -41,79 +54,124 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
           </Typography>
         )}
         
-        <GoogleLogin
-          onSuccess={async (credentialResponse: CredentialResponse) => {
-            console.log('=== GOOGLE OAUTH SUCCESS CALLBACK START ===');
-            console.log('Credential response:', credentialResponse);
-            console.log('Credential length:', credentialResponse.credential?.length || 0);
-            
-            if (!credentialResponse.credential) {
-              console.error('No credential in response');
-              alert('No credential returned from Google');
-              return;
-            }
-            
-            console.log('Google login successful, sending to backend...');
-            console.log('API URL:', `${API_URL}/auth/google/`);
-            
-            try {
-              console.log('Making POST request to backend...');
-              const requestData = qs.stringify({ credential: credentialResponse.credential });
-              console.log('Request data length:', requestData.length);
+        {/* Hidden GoogleLogin component */}
+        <div style={{ display: 'none' }}>
+          <GoogleLogin
+            onSuccess={async (credentialResponse: CredentialResponse) => {
+              console.log('=== GOOGLE OAUTH SUCCESS CALLBACK START ===');
+              console.log('Credential response:', credentialResponse);
+              console.log('Credential length:', credentialResponse.credential?.length || 0);
               
-              // Add cache-busting and ensure fresh request
-              const res = await axios.post(
-                `${API_URL}/auth/google/?_t=${Date.now()}`,
-                requestData,
-                { 
-                  headers: { 
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                  },
-                  timeout: 15000
+              if (!credentialResponse.credential) {
+                console.error('No credential in response');
+                alert('No credential returned from Google');
+                return;
+              }
+              
+              console.log('Google login successful, sending to backend...');
+              console.log('API URL:', `${API_URL}/auth/google/`);
+              
+              try {
+                console.log('Making POST request to backend...');
+                const requestData = qs.stringify({ credential: credentialResponse.credential });
+                console.log('Request data length:', requestData.length);
+                
+                // Remove cache-busting as it might interfere with OAuth
+                const res = await axios.post(
+                  `${API_URL}/auth/google/`,
+                  requestData,
+                  { 
+                    headers: { 
+                      'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    timeout: 15000
+                  }
+                );
+                
+                console.log('Backend response received!');
+                console.log('Response status:', res.status);
+                console.log('Response data:', res.data);
+                
+                if (res.data && typeof res.data === 'object' && 'user' in res.data) {
+                  console.log('Login successful, user:', (res.data as any).user);
+                  console.log('Calling onLogin callback...');
+                  if (onLogin) onLogin();
+                  console.log('=== GOOGLE OAUTH SUCCESS CALLBACK END ===');
+                } else {
+                  console.error('Backend verification failed - no user in response');
+                  console.log('Response structure:', Object.keys(res.data || {}));
+                  alert('Backend verification failed');
                 }
-              );
-              
-              console.log('Backend response received!');
-              console.log('Response status:', res.status);
-              console.log('Response data:', res.data);
-              
-              if (res.data && typeof res.data === 'object' && 'user' in res.data) {
-                console.log('Login successful, user:', (res.data as any).user);
-                console.log('Calling onLogin callback...');
-                if (onLogin) onLogin();
-                console.log('=== GOOGLE OAUTH SUCCESS CALLBACK END ===');
-              } else {
-                console.error('Backend verification failed - no user in response');
-                console.log('Response structure:', Object.keys(res.data || {}));
-                alert('Backend verification failed');
+              } catch (err: any) {
+                console.error('=== LOGIN ERROR ===');
+                console.error('Error type:', err.constructor.name);
+                console.error('Error message:', err.message);
+                console.error('Error status:', err.response?.status);
+                console.error('Error data:', err.response?.data);
+                console.error('Error config:', err.config);
+                console.error('Network error:', err.code);
+                
+                if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+                  alert('Login request timed out. Please try again.');
+                } else if (err.response?.status === 500) {
+                  alert('Server error. Please try again later.');
+                } else {
+                  const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
+                  alert('Google Sign In Failed: ' + errorMsg);
+                }
               }
-            } catch (err: any) {
-              console.error('=== LOGIN ERROR ===');
-              console.error('Error type:', err.constructor.name);
-              console.error('Error message:', err.message);
-              console.error('Error status:', err.response?.status);
-              console.error('Error data:', err.response?.data);
-              console.error('Error config:', err.config);
-              console.error('Network error:', err.code);
-              
-              if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-                alert('Login request timed out. Please try again.');
-              } else if (err.response?.status === 500) {
-                alert('Server error. Please try again later.');
+            }}
+            onError={() => {
+              console.error('=== GOOGLE OAUTH ERROR CALLBACK ===');
+              console.error('Google OAuth error occurred');
+              alert('Google Sign In Failed');
+            }}
+          />
+        </div>
+        
+        {/* Custom Google Sign In button */}
+        <Button 
+          variant="contained"
+          onClick={() => {
+            // Trigger the hidden GoogleLogin by clicking its button
+            const googleButton = document.querySelector('[data-testid="google-login-button"]') as HTMLElement;
+            if (googleButton) {
+              googleButton.click();
+            } else {
+              // Fallback: try to find any Google OAuth button
+              const buttons = document.querySelectorAll('button');
+              const googleBtn = Array.from(buttons).find(btn => 
+                btn.textContent?.includes('Sign in with Google') || 
+                btn.innerHTML?.includes('google')
+              );
+              if (googleBtn) {
+                (googleBtn as HTMLElement).click();
               } else {
-                const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
-                alert('Google Sign In Failed: ' + errorMsg);
+                alert('Google OAuth button not found. Please refresh the page.');
               }
             }
           }}
-          onError={() => {
-            console.error('=== GOOGLE OAUTH ERROR CALLBACK ===');
-            console.error('Google OAuth error occurred');
-            alert('Google Sign In Failed');
+          disabled={!googleLoaded}
+          sx={{
+            background: 'linear-gradient(45deg, #4285f4, #34a853)',
+            color: 'white',
+            py: 1.5,
+            px: 3,
+            fontSize: '1.1rem',
+            fontWeight: 600,
+            borderRadius: 2,
+            textTransform: 'none',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #3367d6, #2d8f47)'
+            },
+            '&:disabled': {
+              background: 'rgba(255, 255, 255, 0.1)',
+              color: 'rgba(255, 255, 255, 0.3)'
+            }
           }}
-        />
+        >
+          Sign in with Google
+        </Button>
         
         {/* Test button to check backend connectivity */}
         <Button 
@@ -204,20 +262,7 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
         {/* Clear Cache button */}
         <Button 
           variant="outlined" 
-          onClick={() => {
-            console.log('=== CLEARING CACHE ===');
-            // Clear all cookies
-            document.cookie.split(";").forEach(function(c) { 
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-            });
-            // Clear localStorage
-            localStorage.clear();
-            // Clear sessionStorage
-            sessionStorage.clear();
-            console.log('Cache cleared successfully');
-            alert('Cache cleared! Please refresh the page and try signing in again.');
-            window.location.reload();
-          }}
+          onClick={clearAllCookies}
           sx={{ mt: 1, ml: 1 }}
         >
           Clear Cache
