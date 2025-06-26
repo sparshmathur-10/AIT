@@ -33,18 +33,11 @@ export default function App() {
   const API_URL = import.meta.env.VITE_API_URL || '/api';
 
   useEffect(() => {
-    console.log('=== APP MOUNTED ===');
-    console.log('API_URL:', API_URL);
-    console.log('Current URL:', window.location.href);
-    console.log('Google OAuth Client ID:', '938526209070-p87aip5pgetff98rkenmk6ki6hnmorh5.apps.googleusercontent.com');
-    
     fetch(`${API_URL}/auth/profile/`, { credentials: 'include' })
       .then(res => {
-        console.log('Auth check response:', res.status, res.ok);
         return res.ok ? setAuthed(true) : setAuthed(false);
       })
-      .catch(err => {
-        console.error('Auth check error:', err);
+      .catch(() => {
         setAuthed(false);
       })
       .finally(() => setLoading(false));
@@ -53,13 +46,7 @@ export default function App() {
   if (loading) return null;
 
   return (
-    <GoogleOAuthProvider 
-      clientId="938526209070-p87aip5pgetff98rkenmk6ki6hnmorh5.apps.googleusercontent.com"
-      onScriptLoadSuccess={() => {
-        console.log('=== GOOGLE OAUTH SCRIPT LOADED SUCCESSFULLY ===');
-        console.log('Google OAuth script loaded and ready');
-      }}
-    >
+    <GoogleOAuthProvider clientId="938526209070-p87aip5pgetff98rkenmk6ki6hnmorh5.apps.googleusercontent.com">
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {authed ? <Dashboard /> : <Login onLogin={() => setAuthed(true)} />}
