@@ -190,10 +190,6 @@ export default function Login({ onLogin }: { onLogin?: () => void }) {
         >
           Test Database
         </Button>
-        <Box sx={{ mt: 3, color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-          <GoogleIcon sx={{ color: '#ea4335' }} />
-          <Typography variant="body2">Sign in with Google</Typography>
-        </Box>
       </Paper>
     </Box>
   );
