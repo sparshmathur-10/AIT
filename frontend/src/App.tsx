@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useEffect, useState } from "react";
 
 const theme = createTheme({
   palette: {
@@ -30,8 +30,10 @@ export default function App() {
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || '/api';
+
   useEffect(() => {
-    fetch('/api/auth/profile/', { credentials: 'include' })
+    fetch(`${API_URL}/auth/profile/`, { credentials: 'include' })
       .then(res => res.ok ? setAuthed(true) : setAuthed(false))
       .finally(() => setLoading(false));
   }, []);

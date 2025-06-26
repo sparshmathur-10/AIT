@@ -1,9 +1,11 @@
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export async function getAISummary(tasks: Array<{title: string, completed: boolean}>) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
-    const response = await fetch('/api/analyze/', {
+    const response = await fetch(`${API_URL}/analyze/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
