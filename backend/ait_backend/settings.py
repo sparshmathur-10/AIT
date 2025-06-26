@@ -145,7 +145,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://ait-t123.onrender.com",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://ait-t123.onrender.com/static/"
 ]
 
 # For production, use secure cookies
@@ -162,7 +163,8 @@ else:
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ait-t123.onrender.com",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://ait-t123.onrender.com/static/"
 ]
 # ----------------------------------------
 
